@@ -12,14 +12,17 @@
  *   GET    /auth-service/v1/admin/products
  *   GET    /auth-service/v1/admin/users?productName=&search=&mfaFilter=
  *   POST   /auth-service/v1/admin/users
- *   PATCH  /auth-service/v1/admin/users/:id/mfa
+ *   POST   /auth-service/v1/auth/mfa/enroll        (enable — TOTP enrollment)
+ *   PATCH  /auth-service/v1/admin/users/:id/mfa    (disable)
  */
 
 import { request, ApiError } from '../../../services/httpClient.js';
+import { getProductName } from '../../auth/services/authService.js';
 import { mockApi } from './mockData.js';
 
 const MOCK_MODE = import.meta.env.VITE_ADMIN_MOCK === 'true';
 const BASE = '/auth-service/v1/admin';
+const AUTH_BASE = '/auth-service/v1/auth';
 
 // ─── Response normalisation ─────────────────────────────────────────────────────
 // The backend returns a leaner shape than the dashboard UI consumes. These
@@ -193,19 +196,69 @@ export async function createUser(payload) {
  * Only callable by super-admin — enforced both client-side (RBAC guard)
  * and server-side (backend authorization).
  *
+ * Enable and disable hit different backend endpoints:
+ *
+ *   enable  → POST /v1/auth/mfa/enroll   body { userId }
+ *             initiates a TOTP enrollment and returns the enrollment payload the
+ *             admin must hand to the user:
+ *               { message, secret, qrCodeUrl, recoveryCodes }
+ *             (omit userId to self-enroll; a super-admin passes the target id.)
+ *
+ *   disable → PATCH /v1/admin/users/:id/mfa   body { mfaEnabled: false }
+ *             returns a bare acknowledgement: { message }
+ *
+ * The raw body is passed through untouched (no user normalisation) so callers
+ * can surface the QR code / secret / recovery codes. The resulting `mfaEnabled`
+ * state is the requested value — the server mutation having succeeded is what
+ * makes it authoritative.
+ *
  * @param {string} userId
  * @param {boolean} mfaEnabled
- * @returns {Promise<{ data: User, _mock: boolean }>}
+ * @returns {Promise<{ data: MfaToggleResult, _mock: boolean }>}
  */
 export async function toggleUserMfa(userId, mfaEnabled) {
+  if (mfaEnabled) {
+    return withMockFallback(
+      async () =>
+        request(`${AUTH_BASE}/mfa/enroll`, {
+          method: 'POST',
+          body: JSON.stringify({ userId }),
+        }),
+      () => mockApi.toggleMfa(userId, true),
+    );
+  }
+
   return withMockFallback(
-    async () => {
-      const body = await request(`${BASE}/users/${userId}/mfa`, {
+    async () =>
+      request(`${BASE}/users/${userId}/mfa`, {
         method: 'PATCH',
-        body: JSON.stringify({ mfaEnabled }),
-      });
-      return normalizeUser(body);
-    },
-    () => mockApi.toggleMfa(userId, mfaEnabled),
+        body: JSON.stringify({ mfaEnabled: false }),
+      }),
+    () => mockApi.toggleMfa(userId, false),
+  );
+}
+
+/**
+ * Confirm (activate) a pending MFA enrollment by verifying a code from the
+ * user's authenticator app.
+ *
+ * Until this succeeds the enrollment is inert — the backend only requires MFA at
+ * login once the credential is confirmed. On success MFA becomes enforced for
+ * that user.
+ *
+ *   POST /v1/auth/mfa/confirm   body { productName, userId, code }
+ *
+ * @param {string} userId
+ * @param {string} code  6-digit TOTP code
+ * @returns {Promise<{ data: { message: string }, _mock: boolean }>}
+ */
+export async function confirmUserMfa(userId, code) {
+  return withMockFallback(
+    async () =>
+      request(`${AUTH_BASE}/mfa/confirm`, {
+        method: 'POST',
+        body: JSON.stringify({ productName: getProductName(), userId, code }),
+      }),
+    () => mockApi.confirmMfa(userId, code),
   );
 }

@@ -1,99 +1,23 @@
-[
-    {
-        "productName": "ai-log-analyser",
-        "displayName": "AI Log Analyser",
-        "active": true,
-        "settings": {
-            "mfaIssuer": "AI Log Analyser",
-            "jwtAudience": "identity-service:ai-log-analyser",
-            "accessTokenTtl": "PT10M",
-            "emailChangeTtl": "PT24H",
-            "refreshIdleTtl": "P7D",
-            "verificationTtl": "PT24H",
-            "passwordResetTtl": "PT15M",
-            "refreshAbsoluteTtl": "P30D"
-        },
-        "createdAt": "2026-09-30T07:43:59.154525Z",
-        "updatedAt": "2026-09-30T07:43:59.154525Z"
-    },
-    {
-        "productName": "document-utility",
-        "displayName": "Document Utility",
-        "active": true,
-        "settings": {
-            "mfaIssuer": "Document Utility",
-            "jwtAudience": "identity-service:document-utility",
-            "accessTokenTtl": "PT10M",
-            "emailChangeTtl": "PT24H",
-            "refreshIdleTtl": "P7D",
-            "verificationTtl": "PT24H",
-            "passwordResetTtl": "PT15M",
-            "refreshAbsoluteTtl": "P30D"
-        },
-        "createdAt": "2026-09-30T07:43:59.154525Z",
-        "updatedAt": "2026-09-30T07:43:59.154525Z"
-    },
-    {
-        "productName": "legacy",
-        "displayName": "Legacy Application",
-        "active": true,
-        "settings": {
-            "mfaIssuer": "Identity Service",
-            "jwtAudience": "identity-service:legacy",
-            "accessTokenTtl": "PT10M",
-            "emailChangeTtl": "PT24H",
-            "refreshIdleTtl": "P7D",
-            "verificationTtl": "PT24H",
-            "passwordResetTtl": "PT15M",
-            "refreshAbsoluteTtl": "P30D"
-        },
-        "createdAt": "2026-09-30T07:43:59.154525Z",
-        "updatedAt": "2026-09-30T07:43:59.154525Z"
-    },
-    {
-        "productName": "password-manager",
-        "displayName": "Password Manager",
-        "active": true,
-        "settings": {
-            "mfaIssuer": "Password Manager",
-            "jwtAudience": "identity-service:password-manager",
-            "accessTokenTtl": "PT5M",
-            "emailChangeTtl": "PT24H",
-            "refreshIdleTtl": "P3D",
-            "argon2MemoryKib": 65536,
-            "verificationTtl": "PT24H",
-            "argon2Iterations": 3,
-            "passwordResetTtl": "PT10M",
-            "argon2Parallelism": 4,
-            "passwordMaxLength": 128,
-            "refreshAbsoluteTtl": "P14D"
-        },
-        "createdAt": "2026-09-30T07:43:59.154525Z",
-        "updatedAt": "2026-09-30T07:43:59.154525Z"
-    },
-    {
-        "productName": "super-admin",
-        "displayName": "Super Admin",
-        "active": true,
-        "settings": {
-            "mfaIssuer": "Super Admin",
-            "jwtAudience": "identity-service:super-admin",
-            "accessTokenTtl": "PT10M",
-            "emailChangeTtl": "PT24H",
-            "refreshIdleTtl": "P7D",
-            "verificationTtl": "PT24H",
-            "passwordResetTtl": "PT15M",
-            "refreshAbsoluteTtl": "P30D"
-        },
-        "createdAt": "2026-10-01T16:17:30.850066Z",
-        "updatedAt": "2026-10-01T16:17:30.850066Z"
-    }
-]
+curl --url 'http://localhost:10009/auth-service/v1/admin/users?productName=super-admin' \
+  -H 'Accept-Language: en-GB,en-US;q=0.9,en;q=0.8' \
+  -H 'Connection: keep-alive' \
+  -b '__Host-refresh=X0YgAlk0aB0SyLDKwZWAC8TUL57aU4SdbO5rZ-7i5zk' \
+  -H 'Origin: http://localhost:5173' \
+  -H 'Referer: http://localhost:5173/' \
+  -H 'Sec-Fetch-Dest: empty' \
+  -H 'Sec-Fetch-Mode: cors' \
+  -H 'Sec-Fetch-Site: same-site' \
+  -H 'User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36' \
+  -H 'accept: application/json' \
+  -H 'authorization: Bearer eyJhbGciOiJSUzI1NiJ9.eyJpc3MiOiJodHRwczovL2lkZW50aXR5LmV4YW1wbGUuY29tIiwic3ViIjoiNDE0MzU1ODYtNjY0ZS00Mzc5LTlkZTctMDYwZWM3YjYzMGQ4IiwiYXVkIjpbImlkZW50aXR5LXNlcnZpY2U6c3VwZXItYWRtaW4iXSwiaWF0IjoxNzkxNDYxMjkxLCJleHAiOjE3OTE0NjE4OTEsImp0aSI6ImUxZWJkZDkwLWZjZGMtNDY3ZC04ZmExLWEzZDg1MzlkZjdkOSIsInNpZCI6ImUxNzg0NzUwLTkzYzEtNDBjOS1iODNiLWRiZDljMTAyMjE0OCIsInByb2R1Y3ROYW1lIjoic3VwZXItYWRtaW4iLCJzY29wZXMiOlsicHJvZmlsZSIsIm9iamVjdHMiXSwicm9sZXMiOltdfQ.iwzwyQIZWVq5Eo2MmoABgiegfNiG4bCoQnzSq_v3LmlMQk1lFe-Vp6jGKAQexhN4qLxW7zy4ai29kv8ZqB46PtVLkxM6qRyMSmeWVkwL9G7XniggxhKr5xdRZ5ox5a75meV3q1xSknE6M3u2tmQRPrvQs_EjIy_IYP0R-RWFkMqabS2gZiniwT0_SVUrOtJyfKyIZS-dJL1EJeQmNIHG7SxnY6JJSnsdT5aMTC38I0TXPA9G3l1XMHbraAN6I-TwZ63tSre6Hw_sERFy9I_K37qdT6SaLtDjfljJJJ9h0WgvvklUEDfns0DJuc4Xc8jhRlXwOczRd9GMvIV4RwsVMg' \
+  -H 'content-type: application/json' \
+  -H 'sec-ch-ua: "Chromium";v="154", "Google Chrome";v="154", "Not A(Brand";v="99"' \
+  -H 'sec-ch-ua-mobile: ?0' \
+  -H 'sec-ch-ua-platform: "Linux"' \
+  -H 'x-session-id: e1784750-93c1-40c9-b83b-dbd9c1022148'
 
 
-
-
-[
+  [
     {
         "id": "41435586-664e-4379-9de7-060ec7b630d8",
         "productName": "super-admin",
@@ -102,14 +26,5 @@
         "emailVerifiedAt": "2026-10-01T16:19:11.016846Z",
         "createdAt": "2026-10-01T16:18:23.270951Z",
         "updatedAt": "2026-10-01T16:19:10.991368Z"
-    },
-    {
-        "id": "5e95de2e-ee38-4302-b125-795bc87c07f8",
-        "productName": "ai-log-analyser",
-        "email": "rsharma0374@gmail.com",
-        "status": "ACTIVE",
-        "emailVerifiedAt": "2026-09-30T07:56:37.441123Z",
-        "createdAt": "2026-09-30T07:54:38.526457Z",
-        "updatedAt": "2026-09-30T07:56:00.016202Z"
     }
 ]

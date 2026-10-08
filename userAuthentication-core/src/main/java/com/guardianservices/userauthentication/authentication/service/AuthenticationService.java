@@ -31,7 +31,6 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -124,14 +123,22 @@ public class AuthenticationService {
             challengeHash,
             product.productName()
         )
-            .orElseThrow(() -> new UnauthorizedException("Invalid or expired MFA challenge"));
+            .orElseThrow(() -> new ValidationException(
+                "Invalid or expired verification challenge. Please sign in again.",
+                Map.of("challengeId", "The verification challenge is invalid, already used, or expired")
+            ));
 
         if (challenge.getPurpose() != AuthChallengePurpose.MFA_VERIFICATION) {
             throw new UnauthorizedException("Invalid challenge purpose");
         }
 
-        User user = userRepository.findById(UUID.fromString(challenge.getMetadata().split("\"userId\":\"")[1].split("\"")[0]))
-            .orElseThrow(() -> new UnauthorizedException("User not found"));
+        // Use the challenge's mapped user directly. (Parsing the JSONB metadata
+        // string is fragile — Postgres reserializes JSONB, e.g. adding a space
+        // after the colon, so substring splitting threw ArrayIndexOutOfBounds.)
+        User user = challenge.getUser();
+        if (user == null) {
+            throw new UnauthorizedException("User not found");
+        }
 
         // Verify TOTP
         MfaCredential mfaCredential = mfaCredentialRepository.findByUserAndType(user, MfaType.TOTP)
@@ -142,7 +149,10 @@ public class AuthenticationService {
         }
 
         String secret = decryptSecret(mfaCredential.getEncryptedSecret());
-        boolean valid = googleAuthenticator.authorize(secret, Integer.parseInt(code), 1);
+        // Validate against the current time. (The 3-arg overload's last param is
+        // an absolute timestamp in millis, NOT a window size — passing a small
+        // constant there checks the code against 1970 and always fails.)
+        boolean valid = isNumeric(code) && googleAuthenticator.authorize(secret, Integer.parseInt(code));
 
         if (!valid) {
             // Check recovery codes
@@ -160,10 +170,16 @@ public class AuthenticationService {
             )) {
                 challenge.setCompletedAt(clock.now());
                 authChallengeRepository.save(challenge);
-                throw new UnauthorizedException("Too many failed attempts");
+                throw new ValidationException(
+                    "Too many failed attempts. Please sign in again.",
+                    Map.of("code", "Maximum verification attempts exceeded")
+                );
             }
             authChallengeRepository.save(challenge);
-            throw new UnauthorizedException("Invalid MFA code");
+            throw new ValidationException(
+                "Invalid MFA code",
+                Map.of("code", "Invalid or expired code. Enter the current code from your authenticator app.")
+            );
         }
 
         // Mark challenge as completed
@@ -176,6 +192,18 @@ public class AuthenticationService {
 
         // Create authenticated session
         return createAuthenticatedSession(user, deviceId, deviceName, ipAddress, userAgent, List.of("mfa"));
+    }
+
+    private boolean isNumeric(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        for (int i = 0; i < value.length(); i++) {
+            if (!Character.isDigit(value.charAt(i))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private boolean verifyRecoveryCode(User user, String code) {

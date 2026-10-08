@@ -15,6 +15,25 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     List<User> findAllByProductNameOrderByCreatedAtDesc(String productName);
 
+    @Query("""
+        SELECT u FROM User u
+        WHERE (:productName IS NULL OR u.productName = :productName)
+          AND (
+              :mfaEnabled IS NULL
+              OR (:mfaEnabled = TRUE AND EXISTS (
+                      SELECT 1 FROM MfaCredential mc
+                      WHERE mc.user = u AND mc.confirmedAt IS NOT NULL))
+              OR (:mfaEnabled = FALSE AND NOT EXISTS (
+                      SELECT 1 FROM MfaCredential mc
+                      WHERE mc.user = u AND mc.confirmedAt IS NOT NULL))
+          )
+        ORDER BY u.createdAt DESC
+        """)
+    List<User> findForAdmin(
+        @Param("productName") String productName,
+        @Param("mfaEnabled") Boolean mfaEnabled
+    );
+
     Optional<User> findByProductNameAndEmailNormalized(String productName, String emailNormalized);
 
     Optional<User> findByProductNameAndEmailNormalizedAndStatus(

@@ -10,7 +10,6 @@ import com.guardianservices.userauthentication.authentication.repository.AuthCha
 import com.guardianservices.userauthentication.authentication.repository.MfaCredentialRepository;
 import com.guardianservices.userauthentication.authentication.repository.MfaRecoveryCodeRepository;
 import com.guardianservices.userauthentication.common.exception.ForbiddenException;
-import com.guardianservices.userauthentication.common.exception.UnauthorizedException;
 import com.guardianservices.userauthentication.common.exception.ValidationException;
 import com.guardianservices.userauthentication.common.util.Clock;
 import com.guardianservices.userauthentication.common.util.SecureTokenGenerator;
@@ -96,10 +95,25 @@ public class MfaService {
         }
 
         String secret = decryptSecret(credential.getEncryptedSecret());
-        boolean valid = googleAuthenticator.authorize(secret, Integer.parseInt(code), 1);
+        int totp;
+        try {
+            totp = Integer.parseInt(code.trim());
+        } catch (NumberFormatException exception) {
+            throw new ValidationException(
+                "Invalid MFA code",
+                Map.of("code", "Enter the 6-digit code from your authenticator app")
+            );
+        }
+        // Validate against the current time. (The 3-arg overload's last param is
+        // an absolute timestamp in millis, NOT a window size — passing a small
+        // constant there checks the code against 1970 and always fails.)
+        boolean valid = googleAuthenticator.authorize(secret, totp);
 
         if (!valid) {
-            throw new UnauthorizedException("Invalid MFA code");
+            throw new ValidationException(
+                "Invalid MFA code",
+                Map.of("code", "Invalid or expired code. Enter the current code from your authenticator app.")
+            );
         }
 
         credential.setConfirmedAt(clock.now());

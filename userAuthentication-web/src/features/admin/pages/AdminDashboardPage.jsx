@@ -8,13 +8,14 @@ import { useToast } from '../../../components/ui/Toast.jsx';
 
 import { useAuth } from '../../auth/context/AuthContext.jsx';
 import { useProduct, ALL_PRODUCTS } from '../context/ProductContext.jsx';
-import { getUsers, createUser, toggleUserMfa } from '../services/adminService.js';
+import { getUsers, createUser, toggleUserMfa, confirmUserMfa } from '../services/adminService.js';
 
 import ProductSwitcher from '../components/ProductSwitcher.jsx';
 import ProductOverviewGrid from '../components/ProductOverviewGrid.jsx';
 import UserTable from '../components/UserTable.jsx';
 import CreateUserModal from '../components/CreateUserModal.jsx';
 import MfaConfirmationDialog from '../components/MfaConfirmationDialog.jsx';
+import MfaEnrollmentResultDialog from '../components/MfaEnrollmentResultDialog.jsx';
 import MockDataBanner from '../components/MockDataBanner.jsx';
 
 /**
@@ -55,6 +56,7 @@ export default function AdminDashboardPage() {
   const [mfaDialog, setMfaDialog]       = useState(null); // { user, nextValue }
   const [mfaSubmitting, setMfaSubmitting] = useState(false);
   const [togglingUserId, setTogglingUserId] = useState(null);
+  const [mfaEnrollment, setMfaEnrollment] = useState(null); // { user, result }
 
   // ── Sign out ───────────────────────────────────────────────────────────────
   const [signingOut, setSigningOut] = useState(false);
@@ -139,24 +141,54 @@ export default function AdminDashboardPage() {
     setTogglingUserId(user.id);
     try {
       const { data } = await toggleUserMfa(user.id, nextValue);
-      // Optimistically patch the row from the returned record.
-      setUsers((list) =>
-        list.map((u) => (u.id === user.id ? { ...u, mfaEnabled: data?.mfaEnabled ?? nextValue } : u)),
-      );
-      toast.success(
-        `MFA ${nextValue ? 'enabled' : 'disabled'} for ${user.email}.`,
-        { title: 'MFA updated' },
-      );
       setMfaDialog(null);
-      refreshProducts(); // keep adoption metrics fresh
-      // If an MFA filter is active, the row may no longer match — refetch.
-      if (mfaFilter !== 'all') fetchUsers();
+
+      if (nextValue) {
+        // Enrollment started. MFA is NOT active (and not enforced at login)
+        // until the user confirms a code — so the row stays as-is until then.
+        // The dialog surfaces the one-time secret / QR / recovery codes and
+        // collects the confirmation code.
+        if (data && (data.secret || data.qrCodeUrl)) {
+          setMfaEnrollment({ user, result: data });
+        } else {
+          toast.success(`MFA enrollment started for ${user.email}.`, { title: 'MFA' });
+          fetchUsers();
+        }
+      } else {
+        setUsers((list) =>
+          list.map((u) => (u.id === user.id ? { ...u, mfaEnabled: false } : u)),
+        );
+        toast.success(`MFA disabled for ${user.email}.`, { title: 'MFA updated' });
+        refreshProducts(); // keep adoption metrics fresh
+        if (mfaFilter !== 'all') fetchUsers();
+      }
     } catch (err) {
       toast.error(err?.message ?? 'Failed to update MFA.', { title: 'MFA update failed' });
     } finally {
       setMfaSubmitting(false);
       setTogglingUserId(null);
     }
+  }
+
+  // Verify a code to activate the pending enrollment. Throws on failure so the
+  // dialog can surface the error inline and keep itself open.
+  async function handleConfirmEnrollment(code) {
+    if (!mfaEnrollment) return;
+    const { user } = mfaEnrollment;
+    await confirmUserMfa(user.id, code);
+    setMfaEnrollment(null);
+    toast.success(`MFA activated for ${user.email}. Login now requires verification.`, {
+      title: 'MFA enabled',
+    });
+    await Promise.all([fetchUsers(), refreshProducts()]);
+  }
+
+  // Dismiss the enrollment dialog without activating. Refetch so the row shows
+  // the true (still-disabled) state until the user confirms later.
+  function closeEnrollmentDialog() {
+    setMfaEnrollment(null);
+    fetchUsers();
+    refreshProducts();
   }
 
   async function handleSignOut() {
@@ -302,6 +334,14 @@ export default function AdminDashboardPage() {
         submitting={mfaSubmitting}
         onConfirm={confirmMfaToggle}
         onClose={() => setMfaDialog(null)}
+      />
+
+      <MfaEnrollmentResultDialog
+        open={!!mfaEnrollment}
+        user={mfaEnrollment?.user}
+        result={mfaEnrollment?.result}
+        onConfirm={handleConfirmEnrollment}
+        onClose={closeEnrollmentDialog}
       />
     </div>
   );

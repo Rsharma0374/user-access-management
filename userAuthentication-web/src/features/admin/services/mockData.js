@@ -237,6 +237,63 @@ export const mockApi = {
       if (!mfaEnabled && prev) prod.mfaEnabledCount -= 1;
     }
 
-    return { ...user };
+    // Mirror the real backend: enabling initiates a TOTP enrollment and returns
+    // the secret / QR code / recovery codes; disabling just acknowledges.
+    if (!mfaEnabled) {
+      return { message: 'MFA disabled' };
+    }
+
+    const secret = mockTotpSecret();
+    const label = encodeURIComponent(`Guardian:${user.email}`);
+    const issuer = encodeURIComponent('Guardian');
+    const otpauth =
+      `otpauth://totp/${label}?secret=${secret}&issuer=${issuer}` +
+      `&algorithm=SHA1&digits=6&period=30`;
+    return {
+      message: 'MFA enrollment initiated',
+      secret,
+      qrCodeUrl:
+        'https://api.qrserver.com/v1/create-qr-code/?size=200x200&ecc=M&margin=0&data=' +
+        encodeURIComponent(otpauth),
+      recoveryCodes: Array.from({ length: 10 }, () => mockRecoveryCode()),
+    };
+  },
+
+  async confirmMfa(userId, code) {
+    await delay(400);
+    const user = _mockUsers.find((u) => u.id === userId);
+    if (!user) {
+      const err = new Error('User not found.');
+      err.status = 404;
+      throw err;
+    }
+    // Accept any well-formed 6-digit code in mock mode.
+    if (!/^\d{6}$/.test(String(code ?? ''))) {
+      const err = new Error('Invalid MFA code.');
+      err.status = 401;
+      throw err;
+    }
+    user.mfaEnabled = true;
+    return { message: 'MFA enrolled successfully' };
   },
 };
+
+// ── Mock credential generators ────────────────────────────────────────────────
+// Produce realistic-looking (but entirely fake) values for mock mode only.
+
+const BASE32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+function mockTotpSecret(length = 32) {
+  let out = '';
+  for (let i = 0; i < length; i++) {
+    out += BASE32[Math.floor(Math.random() * BASE32.length)];
+  }
+  return out;
+}
+
+function mockRecoveryCode() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
+  const group = (n) =>
+    Array.from({ length: n }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  return `${group(4)}-${group(4)}-${group(4)}-${group(4)}-${group(4)}-${group(2)}`;
+}
