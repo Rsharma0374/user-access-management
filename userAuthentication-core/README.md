@@ -67,12 +67,12 @@ docker-compose up -d
 ./mvnw spring-boot:run -Pdev
 ```
 
-The API will be available at `http://localhost:8080/api`. Email verification links use `GET /api/v1/auth/email/verify/{productName}/{token}` when accessing the dev server directly.
+The API will be available at `http://localhost:10009/auth-service` (the `dev` profile uses port `10009` and context path `/auth-service`). Email verification links use `GET /auth-service/v1/auth/email/verify/{productName}/{token}` when accessing the dev server directly.
 
 ### API Documentation
 
-Swagger UI: `http://localhost:8080/api/swagger-ui.html`
-OpenAPI Spec: `http://localhost:8080/api/api-docs`
+Swagger UI: `http://localhost:10009/auth-service/swagger-ui.html`
+OpenAPI Spec: `http://localhost:10009/auth-service/api-docs`
 
 ### Key Endpoints
 

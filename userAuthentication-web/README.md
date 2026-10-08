@@ -181,7 +181,7 @@ The backend constructs reset links as:
 In the dev config this is:
 
 ```
-http://localhost:10009/api/reset-password?token=<TOKEN>
+http://localhost:10009/auth-service/reset-password?token=<TOKEN>
 ```
 
 The frontend serves `/reset-password` and reads `?token=` from the URL. The raw
