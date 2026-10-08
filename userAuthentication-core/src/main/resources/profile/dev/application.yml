@@ -1,0 +1,158 @@
+spring:
+  application:
+    name: identity-service
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+
+  redis:
+    host: localhost
+    port: 6379
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 20
+        max-idle: 10
+        min-idle: 2
+
+# Server Configuration
+server:
+  port: 10009
+  servlet:
+    context-path: /auth-service
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+
+# Management / Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.guardianservices.userauthentication: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# Application Properties
+app:
+  auth:
+    jwt:
+      issuer: "https://identity.example.com"
+      audience: "identity-service"
+      access-token-ttl: 10m
+      signing-key-alias: "identity-signing-key"
+      jwks-endpoint-path: "/.well-known/jwks.json"
+    refresh:
+      absolute-ttl: 30d
+      idle-ttl: 7d
+      rotation-grace-window-seconds: 0
+    password:
+      argon2-memory-kib: 65536
+      argon2-iterations: 3
+      argon2-parallelism: 4
+      max-length: 128
+      breached-password-api-url: ""
+    rate-limit:
+      login-attempts-per-minute: 10
+      register-attempts-per-hour: 5
+      refresh-attempts-per-minute: 20
+      verification-resend-attempts-per-hour: 3
+    mfa:
+      max-totp-attempts: 5
+      max-recovery-code-attempts: 10
+      recovery-code-count: 10
+      recovery-code-length: 16
+      issuer: "IdentityService"
+    action-token:
+      verification-ttl: 24h
+      password-reset-ttl: 15m
+      email-change-ttl: 24h
+    session:
+      csrf-enabled: true
+      cookie-name: "__Host-refresh"
+      cookie-path: "/"
+      cookie-secure: false  # false for dev HTTP
+      cookie-same-site: "Lax"
+
+  storage:
+    s3:
+      region: "us-east-1"
+      quarantine-bucket: "identity-quarantine-dev"
+      clean-bucket: "identity-clean-dev"
+      kms-key-id: ""
+      endpoint-override: "http://localhost:4566"  # LocalStack
+    upload:
+      profile-image-max-size-bytes: 5242880  # 5 MiB
+      general-upload-max-size-bytes: 52428800  # 50 MiB
+      presigned-post-ttl: 5m
+      download-url-ttl: 60s
+      allowed-profile-image-types:
+        - "image/jpeg"
+        - "image/png"
+        - "image/webp"
+      allowed-general-upload-types: []
+    quarantine:
+      object-ttl: 7d
+      multipart-ttl: 1d
+
+  notification:
+    email:
+      from-address: "noreply@localhost"
+      from-name: "Identity Service"
+      base-url: "http://localhost:10009/auth-service"
+      verification-path: "/v1/auth/email/verify"
+      password-reset-path: "/reset-password"
+      email-change-path: "/confirm-email-change"
+    outbox:
+      batch-size: 100
+      lease-duration: 5m
+      poll-interval: 10s
+      max-attempts: 5
+      retry-backoff: 1m
+    encryption:
+      key-alias: "notification-encryption-key"
+
+# Swagger/OpenAPI
+springdoc:
+  api-docs:
+    enabled: true
+    path: /api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    operations-sorter: method

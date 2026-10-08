@@ -1,0 +1,167 @@
+_format_version: "3.0"
+_transform: true
+
+# Kong Configuration for Identity Service
+# Based on architecture.md section 3: Kong responsibilities and trust boundaries
+
+_info:
+  description: "Kong Gateway Configuration for Identity Service"
+  version: "1.0.0"
+
+# Services
+services:
+  - name: identity-service
+    url: http://identity-service:8080/api
+    connect_timeout: 5000
+    write_timeout: 10000
+    read_timeout: 10000
+    retries: 3
+    routes:
+      - name: identity-service-routes
+        paths:
+          - /api/v1/auth
+          - /api/v1/users
+          - /api/v1/uploads
+          - /api/v1/objects
+          - /api/.well-known
+        methods:
+          - GET
+          - POST
+          - PATCH
+          - DELETE
+        strip_path: false
+        preserve_host: true
+        https_redirect_status_code: 426
+        regex_priority: 100
+    plugins:
+      # Request size limiting
+      - name: request-size-limiting
+        config:
+          allowed_payload_size: 128  # 128 MB max for uploads
+          require_content_length: true
+      
+      # Rate limiting (per consumer/IP)
+      - name: rate-limiting
+        config:
+          minute: 1000
+          hour: 10000
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
+      
+      # Correlation ID
+      - name: correlation-id
+        config:
+          header_name: X-Request-ID
+          generator: uuid
+          echo_downstream: true
+      
+      # IP Restriction for actuator endpoints
+      - name: ip-restriction
+        config:
+          allow:
+            - 10.0.0.0/8
+            - 172.16.0.0/12
+            - 192.168.0.0/16
+        route: actuator-routes
+
+  # Separate service for actuator endpoints (internal only)
+  - name: identity-service-actuator
+    url: http://identity-service:8080/api
+    connect_timeout: 5000
+    write_timeout: 5000
+    read_timeout: 5000
+    routes:
+      - name: actuator-routes
+        paths:
+          - /api/actuator
+        methods:
+          - GET
+        strip_path: false
+        preserve_host: true
+    plugins:
+      - name: ip-restriction
+        config:
+          allow:
+            - 10.0.0.0/8
+            - 172.16.0.0/12
+            - 192.168.0.0/16
+
+# Consumers (for rate limiting and authentication)
+consumers:
+  - username: web-client
+    custom_id: web-client
+  - username: mobile-client
+    custom_id: mobile-client
+
+# Plugins
+plugins:
+  # Global rate limiting for auth endpoints
+  - name: rate-limiting
+    route: identity-service-routes
+    config:
+      minute: 60
+      hour: 1000
+      policy: redis
+      redis_host: redis
+      redis_port: 6379
+      fault_tolerant: true
+      hide_client_headers: false
+
+  # Stricter rate limiting for registration
+  - name: rate-limiting
+    route: identity-service-routes
+    config:
+      minute: 5
+      hour: 20
+      policy: redis
+      redis_host: redis
+      redis_port: 6379
+      fault_tolerant: true
+      hide_client_headers: false
+    protocols:
+      - http
+      - https
+    # This would need to be applied to specific routes in practice
+
+# Upstreams (for load balancing)
+upstreams:
+  - name: identity-service-upstream
+    algorithm: round-robin
+    healthchecks:
+      active:
+        type: http
+        http_path: /api/actuator/health/liveness
+        healthy:
+          interval: 10
+          successes: 2
+        unhealthy:
+          interval: 10
+          http_failures: 3
+        timeout: 5
+        concurrency: 10
+      passive:
+        healthy:
+          successes: 5
+        unhealthy:
+          http_failures: 10
+          tcp_failures: 10
+          timeout: 10
+    targets:
+      - target: identity-service-1:8080
+        weight: 100
+      - target: identity-service-2:8080
+        weight: 100
+
+# Certificates (managed externally, referenced here)
+# certificates:
+#   - cert: |
+#       -----BEGIN CERTIFICATE-----
+#       ...
+#       -----END CERTIFICATE-----
+#     key: |
+#       -----BEGIN PRIVATE KEY-----
+#       ...
+#       -----END PRIVATE KEY-----
+#     snis:
+#       - identity.example.com
