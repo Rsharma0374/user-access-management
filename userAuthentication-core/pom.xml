@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.4.2</version>
+        <version>3.4.13</version>
         <relativePath/>
     </parent>
     <groupId>com.userAuthentication</groupId>
@@ -26,7 +26,8 @@
         <flyway.version>11.8.1</flyway.version>
         <aws.java.sdk.version>2.28.0</aws.java.sdk.version>
         <jjwt.version>0.12.6</jjwt.version>
-        <nimbus-jose-jwt.version>9.37.3</nimbus-jose-jwt.version>
+        <nimbus-jose-jwt.version>9.37.4</nimbus-jose-jwt.version>
+        <bouncycastle.version>1.86</bouncycastle.version>
         <argon2.version>2.11</argon2.version>
         <resilience4j.version>2.2.0</resilience4j.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
@@ -52,6 +53,13 @@
                 <version>${aws.java.sdk.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <!-- Force a single, non-vulnerable BouncyCastle version across the dependency tree
+                 (Spring Cloud pulls 1.78.1 transitively) to satisfy dependencyConvergence. -->
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcprov-jdk18on</artifactId>
+                <version>${bouncycastle.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -152,7 +160,7 @@
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk18on</artifactId>
-            <version>1.78.1</version>
+            <version>${bouncycastle.version}</version>
         </dependency>
         <dependency>
             <groupId>de.mkammerer</groupId>
