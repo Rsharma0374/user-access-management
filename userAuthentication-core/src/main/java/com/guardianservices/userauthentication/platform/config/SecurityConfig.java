@@ -4,6 +4,7 @@ import com.guardianservices.userauthentication.authentication.service.JwtService
 import com.guardianservices.userauthentication.common.exception.UnauthorizedException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
@@ -27,6 +28,9 @@ public class SecurityConfig {
 
     private final JwtService jwtService;
     private final AuthProperties authProperties;
+
+    @Value("${app.cors.allowed-origins}")
+    private List<String> allowedOrigins;
 
     public SecurityConfig(JwtService jwtService, AuthProperties authProperties) {
         this.jwtService = jwtService;
@@ -91,9 +95,10 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173", "https://kong.guardianservices.in"));
+        configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
+        configuration.setExposedHeaders(List.of("Authorization", "Location", "X-CSRF-Token"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 

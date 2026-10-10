@@ -70,6 +70,9 @@ logging:
 
 # Application Properties
 app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:https://uam.guardianservices.in}
+
   auth:
     jwt:
       issuer: ${JWT_ISSUER:https://kon.guardianservices.in}
