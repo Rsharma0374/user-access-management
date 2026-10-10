@@ -23,10 +23,12 @@ backend in `../userAuthentication`.
 
 ```bash
 cd userAuthentication-web
-cp .env.example .env.local       # fill in VITE_PRODUCT_NAME
 npm install
-npm run dev                      # http://localhost:5173
+npm run dev                      # http://localhost:5173 (dev profile)
 ```
+
+`npm run dev` loads the committed `dev` profile (`.env.dev`), so it works with
+no setup. To override anything for yourself, `cp .env.example .env.local`.
 
 The Vite dev server proxies `/auth-service/**` to `http://localhost:10009`, so
 no extra CORS or backend configuration is needed for local development.
@@ -43,7 +45,52 @@ All variables are prefixed `VITE_` and are **public** — never put secrets in t
 | `VITE_PRODUCT_NAME` | `default` | Tenant/product identifier required by every backend API call (`productName`). Obtain the correct value from your backend administrator. |
 | `VITE_DEBUG_API` | `false` | Set to `true` to log API requests and errors to the browser console. Never enable in production. |
 
-Copy `.env.example` to `.env.local` and fill in at least `VITE_PRODUCT_NAME`.
+| `VITE_ADMIN_MOCK` | `false` | Set to `true` to force the admin dashboard to use local mock data instead of the backend admin API. |
+
+### Build profiles
+
+Profiles mirror the `dev` / `prod` Maven profiles in `userAuthentication-core`.
+Each one is a committed env file selected by Vite's `--mode` flag:
+
+| Command | Profile | File loaded |
+|---|---|---|
+| `npm run dev` | `dev` | `.env.dev` |
+| `npm run build:dev` | `dev` | `.env.dev` |
+| `npm run build` | `prod` | `.env.prod` |
+| `npm run build:prod` | `prod` | `.env.prod` |
+| `npx vite build --mode <profile>` | `<profile>` | `.env.<profile>` |
+
+`npm run build` defaults to the `prod` profile so a plain build is never
+accidentally shipped with development settings. You can still pass a profile
+explicitly on the command line — it overrides the script default:
+
+```bash
+npm run build -- --mode dev
+```
+
+Add a new profile by dropping in a matching `.env.<profile>` file; no code or
+config change is needed.
+
+### Precedence
+
+Later entries win:
+
+```
+.env.<profile>  <  .env.local  <  .env.<profile>.local  <  shell / CI env
+```
+
+So a deployment can override any value without editing a committed file, e.g.
+`VITE_API_BASE_URL=https://api.example.com npm run build:prod`.
+
+Only `*.local` files are gitignored. The profile files are committed, which is
+safe because every `VITE_*` value is inlined into the bundle and therefore
+public regardless.
+
+> **Empty values are not defaults.** The code reads these with `??`, which only
+> falls back when a variable is *undefined*. Writing `VITE_PRODUCT_NAME=` sets
+> it to an empty string and the `'super-admin'` fallback will not apply.
+> `VITE_API_BASE_URL=` is the deliberate exception — empty means "same origin",
+> which is what the dev proxy relies on.
 
 ---
 
