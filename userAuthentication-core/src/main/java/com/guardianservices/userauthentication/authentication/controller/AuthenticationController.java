@@ -100,11 +100,41 @@ public class AuthenticationController {
         ));
     }
 
+    /**
+     * Client-facing copy for the authentication failures we deliberately
+     * disclose. Anything not listed here falls back to the generic
+     * {@link UnauthorizedException#ERROR_MESSAGE}, so an internal failure can
+     * never leak its reason by accident.
+     */
+    private static final Map<String, String> DISCLOSABLE_AUTH_FAILURES = Map.of(
+        "INVALID_CREDENTIALS", "The email or password you entered is incorrect.",
+        "ACCOUNT_PENDING_VERIFICATION", "Your email address has not been verified yet. "
+            + "Please use the verification link we sent you, or request a new one.",
+        "ACCOUNT_SUSPENDED", "This account has been suspended. Please contact your administrator.",
+        "ACCOUNT_NOT_ACTIVE", "This account is not active. Please contact your administrator.",
+        "MFA_ENROLLMENT_REQUIRED", "This account requires multi-factor authentication to be set up "
+            + "before you can sign in. Please contact your administrator."
+    );
+
     @ExceptionHandler(UnauthorizedException.class)
-    public ResponseEntity<Map<String, String>> handleUnauthorized(UnauthorizedException exception) {
-        log.warn("Authentication request rejected: {}", exception.getMessage());
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-            .body(Map.of("errorMessage", UnauthorizedException.ERROR_MESSAGE));
+    public ResponseEntity<Map<String, Object>> handleUnauthorized(UnauthorizedException exception) {
+        log.warn("Authentication request rejected [{}]: {}", exception.getCode(), exception.getMessage());
+
+        String message = DISCLOSABLE_AUTH_FAILURES.get(exception.getCode());
+        // Unknown/untagged reasons stay opaque, and report the generic code too
+        // so the response never hints at an internal failure mode.
+        String type = message != null ? exception.getCode() : UnauthorizedException.DEFAULT_CODE;
+        if (message == null) {
+            message = UnauthorizedException.ERROR_MESSAGE;
+        }
+
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("type", type);
+        body.put("message", message);
+        // Retained for older clients that read `errorMessage`; drop once they migrate.
+        body.put("errorMessage", message);
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
     }
 
     @ExceptionHandler(ValidationException.class)
@@ -113,6 +143,7 @@ public class AuthenticationController {
         // than masking it behind the generic unauthorized message.
         log.warn("Authentication request failed validation: {}", exception.getMessage());
         Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("type", "VALIDATION_ERROR");
         body.put("message", exception.getMessage());
         if (exception.getFieldErrors() != null) {
             body.put("errors", exception.getFieldErrors());

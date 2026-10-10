@@ -82,12 +82,21 @@ public class AuthenticationService {
 
         if (!passwordValid || user == null) {
             log.warn("Authentication failed due to invalid credentials");
-            throw new UnauthorizedException("Invalid credentials");
+            throw UnauthorizedException.withCode("INVALID_CREDENTIALS", "Invalid credentials");
         }
 
+        // Past this point the password was correct, so naming the account state
+        // tells the caller nothing they could not already confirm.
         if (user.getStatus() != UserStatus.ACTIVE) {
-            log.warn("Authentication rejected for inactive account");
-            throw new UnauthorizedException("Account not active");
+            log.warn("Authentication rejected for account with status {}", user.getStatus());
+            throw switch (user.getStatus()) {
+                case PENDING_VERIFICATION ->
+                    UnauthorizedException.withCode("ACCOUNT_PENDING_VERIFICATION", "Account pending verification");
+                case SUSPENDED ->
+                    UnauthorizedException.withCode("ACCOUNT_SUSPENDED", "Account suspended");
+                default ->
+                    UnauthorizedException.withCode("ACCOUNT_NOT_ACTIVE", "Account not active");
+            };
         }
 
         // Check if MFA is required
@@ -101,7 +110,8 @@ public class AuthenticationService {
 
         if (isPrivileged && !mfaRequired) {
             log.warn("Authentication rejected because privileged account has no MFA configured");
-            throw new UnauthorizedException("MFA required for privileged account");
+            throw UnauthorizedException.withCode(
+                "MFA_ENROLLMENT_REQUIRED", "MFA required for privileged account");
         }
 
         if (mfaRequired) {

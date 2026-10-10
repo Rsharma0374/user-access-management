@@ -29,7 +29,7 @@ public class SecurityConfig {
     private final JwtService jwtService;
     private final AuthProperties authProperties;
 
-    @Value("${app.cors.allowed-origins}")
+    @Value("${app.cors.allowed-origins:http://localhost:5173}")
     private List<String> allowedOrigins;
 
     public SecurityConfig(JwtService jwtService, AuthProperties authProperties) {
