@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.4.13</version>
+        <version>3.5.15</version>
         <relativePath/>
     </parent>
     <groupId>com.userAuthentication</groupId>
@@ -20,7 +20,21 @@
         <java.version>21</java.version>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
-        <spring-cloud.version>2024.0.0</spring-cloud.version>
+        <spring-cloud.version>2025.0.0</spring-cloud.version>
+
+        <!-- Security override versions.
+             These override the Spring Boot BOM-managed versions to patched
+             releases that remediate reported CVEs. Each is a patch/minor bump
+             within the same line shipped by Spring Boot 3.5.x, so behaviour is
+             preserved. (spring-framework 6.2.19, spring-security 6.5.11,
+             logback 1.5.34, micrometer 1.15.12 and spring-data 3.5.12 are already
+             patched by the Spring Boot 3.5.15 BOM and need no override here.) -->
+        <tomcat.version>10.1.60</tomcat.version>
+        <netty.version>4.1.137.Final</netty.version>
+        <jackson-bom.version>2.21.7</jackson-bom.version>
+        <log4j2.version>2.25.5</log4j2.version>
+        <commons-lang3.version>3.18.0</commons-lang3.version>
+        <postgresql.version>42.7.12</postgresql.version>
         <testcontainers.version>1.19.1</testcontainers.version>
         <springdoc.version>2.8.4</springdoc.version>
         <flyway.version>11.8.1</flyway.version>
@@ -60,6 +74,36 @@
                 <groupId>org.bouncycastle</groupId>
                 <artifactId>bcprov-jdk18on</artifactId>
                 <version>${bouncycastle.version}</version>
+            </dependency>
+            <!-- Pin patched versions of transitive libraries that are not governed by the
+                 Spring Boot BOM, to remediate reported CVEs. -->
+            <dependency>
+                <groupId>commons-io</groupId>
+                <artifactId>commons-io</artifactId>
+                <version>2.14.0</version>
+            </dependency>
+            <dependency>
+                <groupId>commons-fileupload</groupId>
+                <artifactId>commons-fileupload</artifactId>
+                <version>1.6.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.squareup.okio</groupId>
+                <artifactId>okio</artifactId>
+                <version>1.17.6</version>
+            </dependency>
+            <dependency>
+                <groupId>org.json</groupId>
+                <artifactId>json</artifactId>
+                <version>20231013</version>
+            </dependency>
+            <!-- Converge ANTLR runtime: hibernate-core pulls 4.13.2 while
+                 spring-data-jpa pulls 4.13.0; pin the higher to satisfy
+                 the enforcer dependencyConvergence rule. -->
+            <dependency>
+                <groupId>org.antlr</groupId>
+                <artifactId>antlr4-runtime</artifactId>
+                <version>4.13.2</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
